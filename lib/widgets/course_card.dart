@@ -1,0 +1,69 @@
+import 'package:bu_scholar/appwrite.dart';
+import 'package:flutter/material.dart';
+import '../utils/string_extensions.dart';
+import 'paper_button.dart';
+
+class CourseCard extends StatelessWidget {
+  final Map<String, dynamic> data;
+
+  const CourseCard({super.key, required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final courseName = data['course_name']
+        .toString()
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map((word) => word.capitalize())
+        .join(' ');
+
+    final courseCode = data['course_code'].toString().toUpperCase();
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      clipBehavior: Clip.antiAlias,
+      margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              courseName,
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              courseCode,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                fontStyle: FontStyle.italic,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              alignment: WrapAlignment.center,
+              children: [
+                if (data['mid_paper'])
+                  PaperButton(
+                    label: 'Mid Sem Paper',
+                    url: Appwrite().getFileUrl("${courseCode}_mid"),
+                  ),
+                if (data['end_paper'])
+                  PaperButton(
+                    label: 'End Sem Paper',
+                    url: Appwrite().getFileUrl("${courseCode}_end"),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
