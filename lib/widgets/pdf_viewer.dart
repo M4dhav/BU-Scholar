@@ -18,6 +18,9 @@ class PdfViewer extends StatelessWidget {
             icon: const Icon(Icons.arrow_back),
             onPressed: () => Navigator.of(context).pop(),
           ),
+          actions: [
+            IconButton(onPressed: () {}, icon: const Icon(Icons.download)),
+          ],
         ),
         body:
             url.isNotEmpty

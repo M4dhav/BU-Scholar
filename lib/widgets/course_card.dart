@@ -1,4 +1,4 @@
-import 'package:bu_scholar/appwrite.dart';
+import 'package:bu_scholar/github_service.dart';
 import 'package:flutter/material.dart';
 import '../utils/string_extensions.dart';
 import 'paper_button.dart';
@@ -18,6 +18,7 @@ class CourseCard extends StatelessWidget {
         .join(' ');
 
     final courseCode = data['course_code'].toString().toUpperCase();
+    final gitHubService = GitHubService();
 
     return Card(
       elevation: 2,
@@ -49,15 +50,39 @@ class CourseCard extends StatelessWidget {
               spacing: 12,
               alignment: WrapAlignment.center,
               children: [
-                if (data['mid_paper'])
-                  PaperButton(
-                    label: 'Mid Sem Paper',
-                    url: Appwrite().getFileUrl("${courseCode}_mid"),
+                if (data['mid_paper'] == true)
+                  FutureBuilder<String>(
+                    future: gitHubService.findExactPaperUrl(courseCode, 'mid'),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        return PaperButton(
+                          label: 'Mid Sem Paper',
+                          url: snapshot.data!,
+                        );
+                      } else {
+                        return PaperButton(
+                          label: 'Mid Sem Paper',
+                          url: gitHubService.getPaperUrl(courseCode, 'mid'),
+                        );
+                      }
+                    },
                   ),
-                if (data['end_paper'])
-                  PaperButton(
-                    label: 'End Sem Paper',
-                    url: Appwrite().getFileUrl("${courseCode}_end"),
+                if (data['end_paper'] == true)
+                  FutureBuilder<String>(
+                    future: gitHubService.findExactPaperUrl(courseCode, 'end'),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        return PaperButton(
+                          label: 'End Sem Paper',
+                          url: snapshot.data!,
+                        );
+                      } else {
+                        return PaperButton(
+                          label: 'End Sem Paper',
+                          url: gitHubService.getPaperUrl(courseCode, 'end'),
+                        );
+                      }
+                    },
                   ),
               ],
             ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'widgets/course_card.dart';
-import 'package:bu_scholar/appwrite.dart';
+import 'package:bu_scholar/github_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.title});
@@ -11,9 +11,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  Map<String, Map<String, dynamic>> documents = {};
-  Map<String, Map<String, dynamic>> filteredDocuments = {};
-  Appwrite appwrite = Appwrite();
+  List<Map<String, dynamic>> courses = [];
+  List<Map<String, dynamic>> filteredCourses = [];
+  GitHubService gitHubService = GitHubService();
   TextEditingController searchController = TextEditingController();
   String searchQuery = '';
 
@@ -21,9 +21,15 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      documents = await appwrite.fetchDocuments();
-      filteredDocuments = documents;
-      setState(() {});
+      try {
+        courses = await gitHubService.fetchCourses();
+        filteredCourses = courses;
+        setState(() {});
+      } catch (e) {
+        // Handle error - maybe show a snackbar or error message
+        print('Error loading courses: $e');
+        setState(() {});
+      }
     });
   }
 
@@ -36,7 +42,7 @@ class _HomePageState extends State<HomePage> {
   void filterDocuments(String query) {
     if (query.isEmpty) {
       setState(() {
-        filteredDocuments = documents;
+        filteredCourses = courses;
       });
       return;
     }
@@ -50,15 +56,13 @@ class _HomePageState extends State<HomePage> {
             .toList();
 
     setState(() {
-      filteredDocuments = documents.map(
-        (key, value) => MapEntry(key, value),
-      )..removeWhere((key, value) {
+      filteredCourses = courses.where((course) {
         final courseName =
-            (value['course_name'] ?? '').toString().toLowerCase();
+            (course['course_name'] ?? '').toString().toLowerCase();
         final courseCode =
-            (value['course_code'] ?? '').toString().toLowerCase();
+            (course['course_code'] ?? '').toString().toLowerCase();
         final description =
-            (value['description'] ?? '').toString().toLowerCase();
+            (course['description'] ?? '').toString().toLowerCase();
 
         // Check if ALL words in the query are found in at least one of the fields
         bool matchesAllWords = true;
@@ -78,9 +82,9 @@ class _HomePageState extends State<HomePage> {
             courseCode.contains(query.toLowerCase()) ||
             description.contains(query.toLowerCase());
 
-        // Document should be removed if it doesn't match all words AND doesn't match exact phrase
-        return !matchesAllWords && !exactPhraseMatch;
-      });
+        // Document should be included if it matches all words OR matches exact phrase
+        return matchesAllWords || exactPhraseMatch;
+      }).toList();
     });
   }
 
@@ -124,9 +128,9 @@ class _HomePageState extends State<HomePage> {
           ),
           Expanded(
             child:
-                documents.isEmpty
+                courses.isEmpty
                     ? const Center(child: CircularProgressIndicator())
-                    : filteredDocuments.isEmpty
+                    : filteredCourses.isEmpty
                     ? const Center(
                       child: Text(
                         'No courses found. Try a different search term.',
@@ -134,12 +138,10 @@ class _HomePageState extends State<HomePage> {
                     )
                     : ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
-                      itemCount: filteredDocuments.length,
+                      itemCount: filteredCourses.length,
                       itemBuilder: (context, index) {
-                        final entry = filteredDocuments.entries.elementAt(
-                          index,
-                        );
-                        return CourseCard(data: entry.value);
+                        final course = filteredCourses[index];
+                        return CourseCard(data: course);
                       },
                     ),
           ),
