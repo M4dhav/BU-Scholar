@@ -1,8 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PdfViewer extends StatelessWidget {
   const PdfViewer({super.key});
+
+  Future<void> _downloadPdf(String url, BuildContext context) async {
+    try {
+      final Uri uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to open download URL'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error downloading PDF: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +47,11 @@ class PdfViewer extends StatelessWidget {
             onPressed: () => Navigator.of(context).pop(),
           ),
           actions: [
-            IconButton(onPressed: () {}, icon: const Icon(Icons.download)),
+            IconButton(
+              onPressed: url.isNotEmpty ? () => _downloadPdf(url, context) : null,
+              icon: const Icon(Icons.download),
+              tooltip: 'Download PDF',
+            ),
           ],
         ),
         body:

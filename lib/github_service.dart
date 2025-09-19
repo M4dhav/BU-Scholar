@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class GitHubService {
-  final String owner = 'm4dhav';
-  final String repo = 'bu-scholar';
+  final String owner = 'M4dhav';
+  final String repo = 'BU-Scholar';
   final String pyqsPath = 'pyqs';
   final String baseUrl = 'https://api.github.com';
 
@@ -16,8 +16,8 @@ class GitHubService {
       );
 
       if (response.statusCode == 404) {
-        // If pyqs folder doesn't exist, return mock data for now
-        return _getMockCourses();
+        // If pyqs folder doesn't exist, return empty list
+        return [];
       }
 
       if (response.statusCode != 200) {
@@ -58,51 +58,9 @@ class GitHubService {
 
       return courses;
     } catch (e) {
-      // Fallback to mock data if there's any error
-      print('Error fetching courses from GitHub: $e');
-      return _getMockCourses();
+      // Don't fallback to mock data, let the error bubble up
+      throw Exception('Error fetching courses from GitHub: $e');
     }
-  }
-
-  List<Map<String, dynamic>> _getMockCourses() {
-    // Return some mock data for testing until the pyqs folder structure is created
-    return [
-      {
-        'course_name': 'Computer Science Fundamentals',
-        'course_code': 'CSF111',
-        'mid_paper': true,
-        'end_paper': true,
-        'description': 'Computer Science Fundamentals (CSF111)',
-      },
-      {
-        'course_name': 'Data Structures and Algorithms',
-        'course_code': 'CSF211',
-        'mid_paper': true,
-        'end_paper': false,
-        'description': 'Data Structures and Algorithms (CSF211)',
-      },
-      {
-        'course_name': 'Operating Systems',
-        'course_code': 'CSF372',
-        'mid_paper': false,
-        'end_paper': true,
-        'description': 'Operating Systems (CSF372)',
-      },
-      {
-        'course_name': 'Database Management Systems',
-        'course_code': 'CSF212',
-        'mid_paper': true,
-        'end_paper': true,
-        'description': 'Database Management Systems (CSF212)',
-      },
-      {
-        'course_name': 'Software Engineering',
-        'course_code': 'CSF314',
-        'mid_paper': true,
-        'end_paper': false,
-        'description': 'Software Engineering (CSF314)',
-      },
-    ];
   }
 
   Future<Map<String, bool>> _fetchPapersInCourse(
@@ -127,11 +85,9 @@ class GitHubService {
 
       for (final item in contents) {
         final fileName = (item['name'] as String).toLowerCase();
-        if (fileName.contains('mid_semester') ||
-            fileName.contains('mid-semester')) {
+        if (fileName.contains('mid') && !fileName.contains('end')) {
           hasMidPaper = true;
-        } else if (fileName.contains('end_semester') ||
-            fileName.contains('end-semester')) {
+        } else if (fileName.contains('end') || fileName.contains('final')) {
           hasEndPaper = true;
         }
       }
@@ -149,7 +105,7 @@ class GitHubService {
     // Find the course folder name that contains this course code
     // For now, we'll construct a generic URL - this will need to be enhanced
     // to find the exact filename with extension
-    return 'https://raw.githubusercontent.com/$owner/$repo/main/$pyqsPath/${courseCode.toLowerCase()}_${courseCode.toUpperCase()}/${fileName}.pdf';
+    return 'https://raw.githubusercontent.com/$owner/$repo/main/$pyqsPath/${courseCode.toLowerCase()}_${courseCode.toUpperCase()}/$fileName.pdf';
   }
 
   Future<String> findExactPaperUrl(String courseCode, String paperType) async {
@@ -195,10 +151,11 @@ class GitHubService {
       final List<dynamic> files = json.decode(filesResponse.body);
 
       // Find the paper file
-      final searchTerm = paperType == 'mid' ? 'mid_semester' : 'end_semester';
+      final searchTerm = paperType == 'mid' ? 'mid' : 'end';
       for (final file in files) {
         final fileName = (file['name'] as String).toLowerCase();
-        if (fileName.contains(searchTerm)) {
+        if (fileName.contains(searchTerm) && 
+            (paperType == 'mid' ? !fileName.contains('end') : true)) {
           return file['download_url'] as String;
         }
       }

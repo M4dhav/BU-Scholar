@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'widgets/course_card.dart';
-import 'package:bu_scholar/github_service.dart';
+import 'github_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.title});
@@ -16,6 +16,8 @@ class _HomePageState extends State<HomePage> {
   GitHubService gitHubService = GitHubService();
   TextEditingController searchController = TextEditingController();
   String searchQuery = '';
+  bool isLoading = true;
+  String? errorMessage;
 
   @override
   void initState() {
@@ -24,10 +26,13 @@ class _HomePageState extends State<HomePage> {
       try {
         courses = await gitHubService.fetchCourses();
         filteredCourses = courses;
-        setState(() {});
+        errorMessage = null;
       } catch (e) {
-        // Handle error - maybe show a snackbar or error message
-        print('Error loading courses: $e');
+        errorMessage = 'Failed to load courses: ${e.toString()}';
+        courses = [];
+        filteredCourses = [];
+      } finally {
+        isLoading = false;
         setState(() {});
       }
     });
@@ -127,23 +132,86 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           Expanded(
-            child:
-                courses.isEmpty
-                    ? const Center(child: CircularProgressIndicator())
-                    : filteredCourses.isEmpty
-                    ? const Center(
-                      child: Text(
-                        'No courses found. Try a different search term.',
-                      ),
-                    )
-                    : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      itemCount: filteredCourses.length,
-                      itemBuilder: (context, index) {
-                        final course = filteredCourses[index];
-                        return CourseCard(data: course);
-                      },
-                    ),
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : errorMessage != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.error_outline,
+                              size: 64,
+                              color: Colors.red,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Error Loading Courses',
+                              style: Theme.of(context).textTheme.headlineSmall,
+                            ),
+                            const SizedBox(height: 8),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 32),
+                              child: Text(
+                                errorMessage!,
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  isLoading = true;
+                                  errorMessage = null;
+                                });
+                                initState();
+                              },
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : courses.isEmpty
+                        ? const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.school_outlined,
+                                  size: 64,
+                                  color: Colors.grey,
+                                ),
+                                SizedBox(height: 16),
+                                Text(
+                                  'No Courses Available',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'No course materials have been uploaded yet.',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          )
+                        : filteredCourses.isEmpty
+                            ? const Center(
+                                child: Text(
+                                  'No courses found. Try a different search term.',
+                                ),
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                itemCount: filteredCourses.length,
+                                itemBuilder: (context, index) {
+                                  final course = filteredCourses[index];
+                                  return CourseCard(data: course);
+                                },
+                              ),
           ),
         ],
       ),

@@ -1,4 +1,4 @@
-import 'package:bu_scholar/github_service.dart';
+import '../github_service.dart';
 import 'package:flutter/material.dart';
 import '../utils/string_extensions.dart';
 import 'paper_button.dart';

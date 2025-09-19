@@ -6,11 +6,11 @@ BU Scholar is a comprehensive mobile companion application designed specifically
 ## Features
 
 ### Currently Implemented
-- **Previous Year Question Papers**: Access mid-semester and end-semester examination papers for various courses
+- **Previous Year Question Papers**: Access mid-semester and end-semester examination papers for various courses from GitHub repository
 - **Intuitive Search System**: Find resources by course name, code, or description with support for multi-word searches
 - **Modern UI Design**: Clean and responsive interface built with Flutter's Material Design 3
 - **PDF Viewing**: Seamlessly view PDF documents directly within the app
-- **Cloud-Based Storage**: Content delivered via Appwrite backend for fast access and updates
+- **GitHub-Based Storage**: Content delivered directly from GitHub repository structure for fast access and easy updates
 
 ### Planned Features
 - **Academic Roadmaps**: Structured learning paths for different programs and specializations
@@ -22,9 +22,10 @@ BU Scholar is a comprehensive mobile companion application designed specifically
 ## Technology Stack
 
 - **Frontend**: Flutter 3.x with Material Design 3
-- **Backend**: Appwrite Cloud for document storage and retrieval
+- **Backend**: GitHub Repository API for document storage and retrieval
 - **PDF Handling**: Syncfusion Flutter PDF Viewer
 - **State Management**: Flutter's built-in state management with StatefulWidgets
+- **HTTP Client**: Dart's http package for API communication
 
 ## Getting Started
 
@@ -57,7 +58,7 @@ BU Scholar is a comprehensive mobile companion application designed specifically
 - `lib/`
   - `main.dart`: Application entry point and theme configuration
   - `home_page.dart`: Main screen with search functionality and resource listing
-  - `appwrite.dart`: Integration with Appwrite backend services
+  - `github_service.dart`: Integration with GitHub repository API for data fetching
   - `widgets/`: Reusable UI components
     - `course_card.dart`: Display card for course resources
     - `paper_button.dart`: Button component for accessing PDF papers
@@ -67,20 +68,41 @@ BU Scholar is a comprehensive mobile companion application designed specifically
   - `utils/`: Utility functions and extensions
     - `string_extensions.dart`: String manipulation utilities
 
+## Repository Structure Setup
+
+The application expects a `pyqs` folder in the root of the repository with the following structure:
+
+```
+pyqs/
+├── computer-science-fundamentals_CSF111/
+│   ├── mid_semester.pdf
+│   └── end_semester.pdf
+├── data-structures-and-algorithms_CSF211/
+│   ├── mid_semester.pdf
+│   └── end_semester.pdf
+├── operating-systems_CSF372/
+│   └── end_semester.pdf
+└── database-management-systems_CSF212/
+    ├── mid_semester.pdf
+    └── end_semester.pdf
+```
+
+### Folder Naming Convention
+- Course folders should follow the format: `course-name_COURSECODE`
+- Course names should use hyphens instead of spaces
+- Course codes should be uppercase
+- Paper files should be named `mid_semester.pdf` or `end_semester.pdf`
+
 ## Backend Setup
 
-The application uses Appwrite as a backend to manage various types of academic resources. To set up your own instance:
+The application uses GitHub's API to dynamically fetch course information and paper availability:
 
-1. Create an Appwrite account and project
-2. Set up a database with collections for:
-   - Courses
-   - Previous Year Questions
-   - Study Materials (planned)
-   - Projects (planned)
-   - Research Papers (planned)
-   - Roadmaps (planned)
-3. Configure storage buckets for document files (PDFs, etc.)
-4. Update the Appwrite configuration in `lib/appwrite.dart` with your project credentials
+1. The app scans the `pyqs` folder for course directories
+2. Each directory name is parsed to extract course name and code
+3. The app checks for the presence of mid and end semester papers
+4. Course cards are dynamically generated based on available papers
+
+No additional backend setup is required - the app works directly with the GitHub repository structure.
 
 ## Contributing
 
