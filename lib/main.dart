@@ -24,7 +24,7 @@ class MainApp extends StatelessWidget {
           brightness: Brightness.light,
         ),
         scaffoldBackgroundColor: const Color(0xFFF8F8F8),
-        cardTheme: const CardTheme(surfaceTintColor: Colors.white),
+        cardTheme: const CardThemeData(surfaceTintColor: Colors.white),
       ),
       initialRoute: '/',
       routes: {
