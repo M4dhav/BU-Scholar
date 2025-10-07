@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'widgets/course_card.dart';
 import 'github_service.dart';
 import 'services/github_auth_service.dart';
@@ -108,9 +110,23 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
+
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         elevation: 2,
-        centerTitle: true,
+        centerTitle: false,
+        actions: [
+          Text('Made with ❤️ by M4dhav'),
+          IconButton(
+            onPressed: () async {
+              await launchUrl(Uri.parse("https://github.com/M4dhav"));
+            },
+            icon: SvgPicture.asset(
+              'assets/github-mark.svg',
+              width: 24,
+              height: 24,
+            ),
+          ),
+        ],
       ),
       body: Column(
         children: [
