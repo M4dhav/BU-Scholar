@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'widgets/course_card.dart';
 import 'github_service.dart';
 import 'services/github_auth_service.dart';
+import 'dart:html' as html;
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.title});
@@ -26,31 +27,63 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    // Handle OAuth callback immediately, before Flutter routing processes URL
+    _handleOAuthCallbackImmediate();
+    
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Check if this is an OAuth callback
-      await _handleOAuthCallback();
-
       // Check authentication status
       await _checkAuthStatus();
-
+      
       // Then load courses
       await _loadCourses();
     });
   }
 
-  Future<void> _handleOAuthCallback() async {
-    // Check if the current URL contains OAuth callback parameters
-    final uri = Uri.base;
-    print('Current URL: ${uri.toString()}'); // Debug
+  void _handleOAuthCallbackImmediate() {
+    // Capture the current URL immediately before Flutter processes it
+    final currentUrl = html.window.location.href;
+    print('Immediate URL capture: $currentUrl'); // Debug
+    
+    // Parse the URL to extract query parameters
+    final uri = Uri.parse(currentUrl);
+    print('Parsed URI: $uri'); // Debug
     print('Query parameters: ${uri.queryParameters}'); // Debug
     
+    // Check if this is an OAuth callback
     if (uri.queryParameters.containsKey('code')) {
-      print('OAuth code found, processing callback...'); // Debug
-      try {
-        final success = await authService.handleOAuthCallback();
-        print('OAuth callback success: $success'); // Debug
+      print('OAuth code found, processing callback immediately...'); // Debug
+      
+      // Process the callback asynchronously
+      Future.delayed(Duration.zero, () async {
+        await _processOAuthCallback(uri);
+      });
+    }
+  }
+
+  Future<void> _processOAuthCallback(Uri uri) async {
+    try {
+      final code = uri.queryParameters['code'];
+      final error = uri.queryParameters['error'];
+
+      if (error != null) {
+        throw Exception('OAuth error: $error');
+      }
+
+      if (code == null) {
+        throw Exception('No authorization code received');
+      }
+
+      print('Processing OAuth code: $code'); // Debug
+      
+      // Use the auth service to exchange the code for a token
+      final success = await authService.handleOAuthCallback();
+      print('OAuth processing result: $success'); // Debug
+      
+      if (success) {
+        // Clear the OAuth parameters from URL
+        html.window.history.replaceState({}, '', '/');
         
-        if (success) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Successfully logged in to GitHub!'),
@@ -58,7 +91,12 @@ class _HomePageState extends State<HomePage> {
               duration: Duration(seconds: 3),
             ),
           );
-        } else {
+          
+          // Refresh authentication status
+          await _checkAuthStatus();
+        }
+      } else {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Failed to complete GitHub login'),
@@ -67,8 +105,10 @@ class _HomePageState extends State<HomePage> {
             ),
           );
         }
-      } catch (e) {
-        print('OAuth callback error: $e'); // Debug
+      }
+    } catch (e) {
+      print('OAuth processing error: $e'); // Debug
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('OAuth error: $e'),
