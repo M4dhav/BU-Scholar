@@ -54,14 +54,23 @@ class CourseCard extends StatelessWidget {
                   FutureBuilder<String>(
                     future: gitHubService.findExactPaperUrl(courseCode, 'mid'),
                     builder: (context, snapshot) {
+                      String label = 'Mid Sem Paper';
                       if (snapshot.hasData) {
+                        // Extract year from filename (format: mid_year.pdf)
+                        final url = snapshot.data!;
+                        final fileName = url.split('/').last.toLowerCase();
+                        final yearMatch = RegExp(r'mid[_-](\d{4})').
+                            firstMatch(fileName);
+                        if (yearMatch != null) {
+                          label = 'Mid Sem ${yearMatch.group(1)}';
+                        }
                         return PaperButton(
-                          label: 'Mid Sem Paper',
-                          url: snapshot.data!,
+                          label: label,
+                          url: url,
                         );
                       } else {
                         return PaperButton(
-                          label: 'Mid Sem Paper',
+                          label: label,
                           url: gitHubService.getPaperUrl(courseCode, 'mid'),
                         );
                       }
@@ -71,14 +80,23 @@ class CourseCard extends StatelessWidget {
                   FutureBuilder<String>(
                     future: gitHubService.findExactPaperUrl(courseCode, 'end'),
                     builder: (context, snapshot) {
+                      String label = 'End Sem Paper';
                       if (snapshot.hasData) {
+                        // Extract year from filename (format: end_year.pdf)
+                        final url = snapshot.data!;
+                        final fileName = url.split('/').last.toLowerCase();
+                        final yearMatch = RegExp(r'end[_-](\d{4})').
+                            firstMatch(fileName);
+                        if (yearMatch != null) {
+                          label = 'End Sem ${yearMatch.group(1)}';
+                        }
                         return PaperButton(
-                          label: 'End Sem Paper',
-                          url: snapshot.data!,
+                          label: label,
+                          url: url,
                         );
                       } else {
                         return PaperButton(
-                          label: 'End Sem Paper',
+                          label: label,
                           url: gitHubService.getPaperUrl(courseCode, 'end'),
                         );
                       }
