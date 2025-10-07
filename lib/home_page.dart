@@ -76,7 +76,10 @@ class _HomePageState extends State<HomePage> {
       print('Processing OAuth code: $code'); // Debug
       
       // Use the auth service to exchange the code for a token
-      final success = await authService.handleOAuthCallback();
+      final success = await authService.handleOAuthCallback(
+        code: code,
+        state: uri.queryParameters['state'],
+      );
       print('OAuth processing result: $success'); // Debug
       
       if (success) {

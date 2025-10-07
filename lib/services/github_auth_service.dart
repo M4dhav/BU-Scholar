@@ -76,25 +76,26 @@ class GitHubAuthService {
   }
 
   /// Handle OAuth callback and exchange code for token
-  Future<bool> handleOAuthCallback() async {
+  Future<bool> handleOAuthCallback({String? code, String? state}) async {
     try {
+      // If code and state not provided, try to get them from URL
       final uri = Uri.parse(html.window.location.href);
-      final code = uri.queryParameters['code'];
-      final state = uri.queryParameters['state'];
+      final authCode = code ?? uri.queryParameters['code'];
+      final authState = state ?? uri.queryParameters['state'];
       final error = uri.queryParameters['error'];
 
       if (error != null) {
         throw Exception('OAuth error: $error');
       }
 
-      if (code == null) {
+      if (authCode == null) {
         throw Exception('No authorization code received');
       }
 
       // Verify state parameter
       final prefs = await SharedPreferences.getInstance();
       final storedState = prefs.getString('oauth_state');
-      if (state != storedState) {
+      if (authState != storedState) {
         throw Exception('Invalid state parameter');
       }
 
@@ -108,7 +109,7 @@ class GitHubAuthService {
         body:
             'client_id=$clientId'
             '&client_secret=$clientSecret'
-            '&code=$code'
+            '&code=$authCode'
             '&redirect_uri=${Uri.encodeComponent(redirectUri)}',
       );
 
