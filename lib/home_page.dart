@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'widgets/course_card.dart';
 import 'github_service.dart';
+import 'services/github_auth_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.title});
@@ -14,34 +15,141 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> courses = [];
   List<Map<String, dynamic>> filteredCourses = [];
   GitHubService gitHubService = GitHubService();
+  GitHubAuthService authService = GitHubAuthService();
   TextEditingController searchController = TextEditingController();
   String searchQuery = '';
   bool isLoading = true;
   String? errorMessage;
+  bool isAuthenticated = false;
+  Map<String, dynamic>? userInfo;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      try {
-        courses = await gitHubService.fetchCourses();
-        filteredCourses = courses;
-        errorMessage = null;
-      } catch (e) {
-        errorMessage = 'Failed to load courses: ${e.toString()}';
-        courses = [];
-        filteredCourses = [];
-      } finally {
-        isLoading = false;
-        setState(() {});
-      }
+      // Check if this is an OAuth callback
+      await _handleOAuthCallback();
+      
+      // Check authentication status
+      await _checkAuthStatus();
+      
+      // Then load courses
+      await _loadCourses();
     });
+  }
+
+  Future<void> _handleOAuthCallback() async {
+    // Check if the current URL contains OAuth callback parameters
+    final uri = Uri.base;
+    if (uri.queryParameters.containsKey('code')) {
+      try {
+        final success = await authService.handleOAuthCallback();
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Successfully logged in to GitHub!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to complete GitHub login'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('OAuth error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _checkAuthStatus() async {
+    isAuthenticated = await authService.isAuthenticated();
+    if (isAuthenticated) {
+      userInfo = await authService.getUserInfo();
+    }
+    setState(() {});
+  }
+
+  Future<void> _loadCourses() async {
+    try {
+      courses = await gitHubService.fetchCourses();
+      filteredCourses = courses;
+      errorMessage = null;
+    } catch (e) {
+      String error = e.toString();
+      
+      // Check if this might be a rate limit error
+      if (error.contains('403') || error.contains('rate limit')) {
+        if (isAuthenticated) {
+          errorMessage = 'GitHub API rate limit exceeded even with authentication. Please try again later.';
+        } else {
+          errorMessage = 'GitHub API rate limit exceeded. Try logging in with your GitHub account for higher limits.';
+        }
+      } else {
+        errorMessage = 'Failed to load courses: $error';
+      }
+      
+      courses = [];
+      filteredCourses = [];
+    } finally {
+      isLoading = false;
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
     searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleGitHubLogin() async {
+    try {
+      final success = await authService.login();
+      if (success) {
+        await _checkAuthStatus();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Successfully logged in to GitHub!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // Reload courses with authenticated access
+        await _loadCourses();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to login to GitHub'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Login error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleGitHubLogout() async {
+    await authService.logout();
+    await _checkAuthStatus();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Logged out from GitHub'),
+      ),
+    );
   }
 
   void filterDocuments(String query) {
@@ -101,6 +209,78 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         elevation: 2,
         centerTitle: true,
+        actions: [
+          if (isAuthenticated)
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'logout') {
+                  _handleGitHubLogout();
+                }
+              },
+              itemBuilder: (BuildContext context) => [
+                PopupMenuItem<String>(
+                  value: 'user_info',
+                  enabled: false,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        userInfo?['login'] ?? 'User',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'GitHub Authenticated',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.green[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem<String>(
+                  value: 'logout',
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout),
+                      SizedBox(width: 8),
+                      Text('Logout'),
+                    ],
+                  ),
+                ),
+              ],
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircleAvatar(
+                      radius: 12,
+                      backgroundImage: userInfo?['avatar_url'] != null
+                          ? NetworkImage(userInfo!['avatar_url'])
+                          : null,
+                      child: userInfo?['avatar_url'] == null
+                          ? const Icon(Icons.person, size: 16)
+                          : null,
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.arrow_drop_down),
+                  ],
+                ),
+              ),
+            )
+          else
+            TextButton.icon(
+              onPressed: _handleGitHubLogin,
+              icon: const Icon(Icons.login, color: Colors.white),
+              label: const Text(
+                'GitHub Login',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Column(
         children: [
@@ -159,15 +339,32 @@ class _HomePageState extends State<HomePage> {
                               ),
                             ),
                             const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: () {
-                                setState(() {
-                                  isLoading = true;
-                                  errorMessage = null;
-                                });
-                                initState();
-                              },
-                              child: const Text('Retry'),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                ElevatedButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      isLoading = true;
+                                      errorMessage = null;
+                                    });
+                                    initState();
+                                  },
+                                  child: const Text('Retry'),
+                                ),
+                                if (errorMessage!.contains('rate limit') && !isAuthenticated) ...[
+                                  const SizedBox(width: 12),
+                                  ElevatedButton.icon(
+                                    onPressed: _handleGitHubLogin,
+                                    icon: const Icon(Icons.login),
+                                    label: const Text('Login to GitHub'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ],
                         ),

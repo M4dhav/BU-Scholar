@@ -1,18 +1,19 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'services/github_auth_service.dart';
 
 class GitHubService {
   final String owner = 'M4dhav';
   final String repo = 'BU-Scholar';
   final String pyqsPath = 'pyqs';
   final String baseUrl = 'https://api.github.com';
+  final GitHubAuthService _authService = GitHubAuthService();
 
   Future<List<Map<String, dynamic>>> fetchCourses() async {
     try {
-      // Get the contents of the pyqs folder
-      final response = await http.get(
-        Uri.parse('$baseUrl/repos/$owner/$repo/contents/$pyqsPath'),
-        headers: {'Accept': 'application/vnd.github.v3+json'},
+      // Get the contents of the pyqs folder using authenticated request
+      final response = await _authService.authenticatedRequest(
+        '$baseUrl/repos/$owner/$repo/contents/$pyqsPath',
       );
 
       if (response.statusCode == 404) {
@@ -63,15 +64,22 @@ class GitHubService {
     }
   }
 
+  /// Check if the last request was rate limited
+  bool isLastRequestRateLimited(http.Response response) {
+    return GitHubAuthService.isRateLimited(response);
+  }
+
+  /// Get rate limit information
+  Map<String, String> getRateLimitInfo(http.Response response) {
+    return GitHubAuthService.getRateLimitInfo(response);
+  }
+
   Future<Map<String, bool>> _fetchPapersInCourse(
     String courseFolderName,
   ) async {
     try {
-      final response = await http.get(
-        Uri.parse(
-          '$baseUrl/repos/$owner/$repo/contents/$pyqsPath/$courseFolderName',
-        ),
-        headers: {'Accept': 'application/vnd.github.v3+json'},
+      final response = await _authService.authenticatedRequest(
+        '$baseUrl/repos/$owner/$repo/contents/$pyqsPath/$courseFolderName',
       );
 
       if (response.statusCode != 200) {
@@ -110,10 +118,9 @@ class GitHubService {
 
   Future<String> findExactPaperUrl(String courseCode, String paperType) async {
     try {
-      // First, find the course folder
-      final coursesResponse = await http.get(
-        Uri.parse('$baseUrl/repos/$owner/$repo/contents/$pyqsPath'),
-        headers: {'Accept': 'application/vnd.github.v3+json'},
+      // First, find the course folder using authenticated request
+      final coursesResponse = await _authService.authenticatedRequest(
+        '$baseUrl/repos/$owner/$repo/contents/$pyqsPath',
       );
 
       if (coursesResponse.statusCode != 200) {
@@ -136,12 +143,9 @@ class GitHubService {
         throw Exception('Course folder not found for $courseCode');
       }
 
-      // Get files in the course folder
-      final filesResponse = await http.get(
-        Uri.parse(
-          '$baseUrl/repos/$owner/$repo/contents/$pyqsPath/$targetFolder',
-        ),
-        headers: {'Accept': 'application/vnd.github.v3+json'},
+      // Get files in the course folder using authenticated request
+      final filesResponse = await _authService.authenticatedRequest(
+        '$baseUrl/repos/$owner/$repo/contents/$pyqsPath/$targetFolder',
       );
 
       if (filesResponse.statusCode != 200) {

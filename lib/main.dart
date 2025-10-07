@@ -3,8 +3,11 @@ import 'home_page.dart';
 import 'privacy_policy.dart';
 import 'widgets/pdf_viewer.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   setUrlStrategy(PathUrlStrategy());
   runApp(const MainApp());
 }
