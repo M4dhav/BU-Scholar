@@ -158,7 +158,7 @@ class GitHubService {
       final searchTerm = paperType == 'mid' ? 'mid' : 'end';
       for (final file in files) {
         final fileName = (file['name'] as String).toLowerCase();
-        if (fileName.contains(searchTerm) && 
+        if (fileName.contains(searchTerm) &&
             (paperType == 'mid' ? !fileName.contains('end') : true)) {
           return file['download_url'] as String;
         }

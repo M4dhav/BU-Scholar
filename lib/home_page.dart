@@ -29,10 +29,10 @@ class _HomePageState extends State<HomePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // Check if this is an OAuth callback
       await _handleOAuthCallback();
-      
+
       // Check authentication status
       await _checkAuthStatus();
-      
+
       // Then load courses
       await _loadCourses();
     });
@@ -85,18 +85,20 @@ class _HomePageState extends State<HomePage> {
       errorMessage = null;
     } catch (e) {
       String error = e.toString();
-      
+
       // Check if this might be a rate limit error
       if (error.contains('403') || error.contains('rate limit')) {
         if (isAuthenticated) {
-          errorMessage = 'GitHub API rate limit exceeded even with authentication. Please try again later.';
+          errorMessage =
+              'GitHub API rate limit exceeded even with authentication. Please try again later.';
         } else {
-          errorMessage = 'GitHub API rate limit exceeded. Try logging in with your GitHub account for higher limits.';
+          errorMessage =
+              'GitHub API rate limit exceeded. Try logging in with your GitHub account for higher limits.';
         }
       } else {
         errorMessage = 'Failed to load courses: $error';
       }
-      
+
       courses = [];
       filteredCourses = [];
     } finally {
@@ -134,10 +136,7 @@ class _HomePageState extends State<HomePage> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Login error: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Login error: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -145,11 +144,9 @@ class _HomePageState extends State<HomePage> {
   Future<void> _handleGitHubLogout() async {
     await authService.logout();
     await _checkAuthStatus();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Logged out from GitHub'),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Logged out from GitHub')));
   }
 
   void filterDocuments(String query) {
@@ -169,35 +166,36 @@ class _HomePageState extends State<HomePage> {
             .toList();
 
     setState(() {
-      filteredCourses = courses.where((course) {
-        final courseName =
-            (course['course_name'] ?? '').toString().toLowerCase();
-        final courseCode =
-            (course['course_code'] ?? '').toString().toLowerCase();
-        final description =
-            (course['description'] ?? '').toString().toLowerCase();
+      filteredCourses =
+          courses.where((course) {
+            final courseName =
+                (course['course_name'] ?? '').toString().toLowerCase();
+            final courseCode =
+                (course['course_code'] ?? '').toString().toLowerCase();
+            final description =
+                (course['description'] ?? '').toString().toLowerCase();
 
-        // Check if ALL words in the query are found in at least one of the fields
-        bool matchesAllWords = true;
-        for (final word in queryWords) {
-          // If none of the fields contain this word, this document doesn't match
-          if (!courseName.contains(word) &&
-              !courseCode.contains(word) &&
-              !description.contains(word)) {
-            matchesAllWords = false;
-            break;
-          }
-        }
+            // Check if ALL words in the query are found in at least one of the fields
+            bool matchesAllWords = true;
+            for (final word in queryWords) {
+              // If none of the fields contain this word, this document doesn't match
+              if (!courseName.contains(word) &&
+                  !courseCode.contains(word) &&
+                  !description.contains(word)) {
+                matchesAllWords = false;
+                break;
+              }
+            }
 
-        // Also check for exact phrase match (the original full query)
-        final exactPhraseMatch =
-            courseName.contains(query.toLowerCase()) ||
-            courseCode.contains(query.toLowerCase()) ||
-            description.contains(query.toLowerCase());
+            // Also check for exact phrase match (the original full query)
+            final exactPhraseMatch =
+                courseName.contains(query.toLowerCase()) ||
+                courseCode.contains(query.toLowerCase()) ||
+                description.contains(query.toLowerCase());
 
-        // Document should be included if it matches all words OR matches exact phrase
-        return matchesAllWords || exactPhraseMatch;
-      }).toList();
+            // Document should be included if it matches all words OR matches exact phrase
+            return matchesAllWords || exactPhraseMatch;
+          }).toList();
     });
   }
 
@@ -217,52 +215,58 @@ class _HomePageState extends State<HomePage> {
                   _handleGitHubLogout();
                 }
               },
-              itemBuilder: (BuildContext context) => [
-                PopupMenuItem<String>(
-                  value: 'user_info',
-                  enabled: false,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        userInfo?['login'] ?? 'User',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+              itemBuilder:
+                  (BuildContext context) => [
+                    PopupMenuItem<String>(
+                      value: 'user_info',
+                      enabled: false,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            userInfo?['login'] ?? 'User',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            'GitHub Authenticated',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.green[700],
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        'GitHub Authenticated',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.green[700],
-                        ),
+                    ),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem<String>(
+                      value: 'logout',
+                      child: Row(
+                        children: [
+                          Icon(Icons.logout),
+                          SizedBox(width: 8),
+                          Text('Logout'),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-                const PopupMenuDivider(),
-                const PopupMenuItem<String>(
-                  value: 'logout',
-                  child: Row(
-                    children: [
-                      Icon(Icons.logout),
-                      SizedBox(width: 8),
-                      Text('Logout'),
-                    ],
-                  ),
-                ),
-              ],
+                    ),
+                  ],
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     CircleAvatar(
                       radius: 12,
-                      backgroundImage: userInfo?['avatar_url'] != null
-                          ? NetworkImage(userInfo!['avatar_url'])
-                          : null,
-                      child: userInfo?['avatar_url'] == null
-                          ? const Icon(Icons.person, size: 16)
-                          : null,
+                      backgroundImage:
+                          userInfo?['avatar_url'] != null
+                              ? NetworkImage(userInfo!['avatar_url'])
+                              : null,
+                      child:
+                          userInfo?['avatar_url'] == null
+                              ? const Icon(Icons.person, size: 16)
+                              : null,
                     ),
                     const SizedBox(width: 4),
                     const Icon(Icons.arrow_drop_down),
@@ -312,103 +316,105 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           Expanded(
-            child: isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : errorMessage != null
+            child:
+                isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : errorMessage != null
                     ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.error_outline,
-                              size: 64,
-                              color: Colors.red,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            size: 64,
+                            color: Colors.red,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Error Loading Courses',
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                          const SizedBox(height: 8),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 32),
+                            child: Text(
+                              errorMessage!,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyMedium,
                             ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Error Loading Courses',
-                              style: Theme.of(context).textTheme.headlineSmall,
-                            ),
-                            const SizedBox(height: 8),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 32),
-                              child: Text(
-                                errorMessage!,
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                ElevatedButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      isLoading = true;
-                                      errorMessage = null;
-                                    });
-                                    initState();
-                                  },
-                                  child: const Text('Retry'),
-                                ),
-                                if (errorMessage!.contains('rate limit') && !isAuthenticated) ...[
-                                  const SizedBox(width: 12),
-                                  ElevatedButton.icon(
-                                    onPressed: _handleGitHubLogin,
-                                    icon: const Icon(Icons.login),
-                                    label: const Text('Login to GitHub'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.green,
-                                      foregroundColor: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ],
-                        ),
-                      )
-                    : courses.isEmpty
-                        ? const Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.school_outlined,
-                                  size: 64,
-                                  color: Colors.grey,
-                                ),
-                                SizedBox(height: 16),
-                                Text(
-                                  'No Courses Available',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  'No course materials have been uploaded yet.',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                              ],
-                            ),
-                          )
-                        : filteredCourses.isEmpty
-                            ? const Center(
-                                child: Text(
-                                  'No courses found. Try a different search term.',
-                                ),
-                              )
-                            : ListView.builder(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                itemCount: filteredCourses.length,
-                                itemBuilder: (context, index) {
-                                  final course = filteredCourses[index];
-                                  return CourseCard(data: course);
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              ElevatedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    isLoading = true;
+                                    errorMessage = null;
+                                  });
+                                  initState();
                                 },
+                                child: const Text('Retry'),
                               ),
+                              if (errorMessage!.contains('rate limit') &&
+                                  !isAuthenticated) ...[
+                                const SizedBox(width: 12),
+                                ElevatedButton.icon(
+                                  onPressed: _handleGitHubLogin,
+                                  icon: const Icon(Icons.login),
+                                  label: const Text('Login to GitHub'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    )
+                    : courses.isEmpty
+                    ? const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.school_outlined,
+                            size: 64,
+                            color: Colors.grey,
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'No Courses Available',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'No course materials have been uploaded yet.',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    )
+                    : filteredCourses.isEmpty
+                    ? const Center(
+                      child: Text(
+                        'No courses found. Try a different search term.',
+                      ),
+                    )
+                    : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      itemCount: filteredCourses.length,
+                      itemBuilder: (context, index) {
+                        final course = filteredCourses[index];
+                        return CourseCard(data: course);
+                      },
+                    ),
           ),
         ],
       ),

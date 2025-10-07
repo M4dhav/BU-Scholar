@@ -48,7 +48,8 @@ class PdfViewer extends StatelessWidget {
           ),
           actions: [
             IconButton(
-              onPressed: url.isNotEmpty ? () => _downloadPdf(url, context) : null,
+              onPressed:
+                  url.isNotEmpty ? () => _downloadPdf(url, context) : null,
               icon: const Icon(Icons.download),
               tooltip: 'Download PDF',
             ),

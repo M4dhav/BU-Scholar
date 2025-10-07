@@ -2,15 +2,15 @@ import 'dart:convert';
 import 'dart:html' as html;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:async';
 
 class GitHubAuthService {
-  // Get credentials from dotenv
-  static String get clientId => dotenv.env['GITHUB_CLIENT_ID'] ?? '';
-  static String get clientSecret => dotenv.env['GITHUB_CLIENT_SECRET'] ?? '';
-  static String get redirectUri => dotenv.env['GITHUB_REDIRECT_URI'] ?? 'http://localhost:3000/auth/callback';
-  
+  // Get credentials from environment variables (works with Vercel)
+  static const String clientId = String.fromEnvironment('GITHUB_CLIENT_ID');
+  static const String clientSecret = String.fromEnvironment('GITHUB_CLIENT_SECRET');
+  static const String redirectUri = String.fromEnvironment('GITHUB_REDIRECT_URI', 
+    defaultValue: 'http://localhost:3001/auth/callback');
+
   static const String _tokenKey = 'github_access_token';
   static const String _userKey = 'github_user_info';
 
@@ -40,7 +40,9 @@ class GitHubAuthService {
   /// Validate that environment variables are configured
   bool _validateConfig() {
     if (clientId.isEmpty || clientSecret.isEmpty) {
-      throw Exception('GitHub OAuth credentials not configured. Please check your .env file.');
+      throw Exception(
+        'GitHub OAuth credentials not configured. Please check your .env file.',
+      );
     }
     return true;
   }
@@ -49,10 +51,11 @@ class GitHubAuthService {
   Future<bool> login() async {
     try {
       _validateConfig();
-      
+
       // For web, redirect to GitHub OAuth page
       final state = DateTime.now().millisecondsSinceEpoch.toString();
-      final authUrl = 'https://github.com/login/oauth/authorize'
+      final authUrl =
+          'https://github.com/login/oauth/authorize'
           '?client_id=$clientId'
           '&redirect_uri=${Uri.encodeComponent(redirectUri)}'
           '&scope=user:email'
@@ -64,7 +67,7 @@ class GitHubAuthService {
 
       // Redirect to GitHub OAuth
       html.window.location.href = authUrl;
-      
+
       return true; // This won't be reached due to redirect
     } catch (e) {
       print('GitHub OAuth error: $e');
@@ -102,21 +105,25 @@ class GitHubAuthService {
           'Accept': 'application/json',
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: 'client_id=$clientId'
+        body:
+            'client_id=$clientId'
             '&client_secret=$clientSecret'
             '&code=$code'
             '&redirect_uri=${Uri.encodeComponent(redirectUri)}',
       );
 
       if (tokenResponse.statusCode != 200) {
-        throw Exception('Failed to exchange code for token: ${tokenResponse.body}');
+        throw Exception(
+          'Failed to exchange code for token: ${tokenResponse.body}',
+        );
       }
 
       final tokenData = json.decode(tokenResponse.body);
       final accessToken = tokenData['access_token'] as String?;
 
       if (accessToken == null) {
-        final errorDesc = tokenData['error_description'] ?? 'Access token not received';
+        final errorDesc =
+            tokenData['error_description'] ?? 'Access token not received';
         throw Exception('Token exchange failed: $errorDesc');
       }
 
@@ -163,7 +170,7 @@ class GitHubAuthService {
     Map<String, String>? additionalHeaders,
   }) async {
     final token = await getAccessToken();
-    
+
     final headers = <String, String>{
       'Accept': 'application/vnd.github.v3+json',
       if (token != null) 'Authorization': 'Bearer $token',
@@ -175,8 +182,8 @@ class GitHubAuthService {
 
   /// Check if a response indicates rate limiting
   static bool isRateLimited(http.Response response) {
-    return response.statusCode == 403 && 
-           response.headers['x-ratelimit-remaining'] == '0';
+    return response.statusCode == 403 &&
+        response.headers['x-ratelimit-remaining'] == '0';
   }
 
   /// Get rate limit info from response headers

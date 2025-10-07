@@ -59,15 +59,13 @@ class CourseCard extends StatelessWidget {
                         // Extract year from filename (format: mid_year.pdf)
                         final url = snapshot.data!;
                         final fileName = url.split('/').last.toLowerCase();
-                        final yearMatch = RegExp(r'mid[_-](\d{4})').
-                            firstMatch(fileName);
+                        final yearMatch = RegExp(
+                          r'mid[_-](\d{4})',
+                        ).firstMatch(fileName);
                         if (yearMatch != null) {
                           label = 'Mid Sem ${yearMatch.group(1)}';
                         }
-                        return PaperButton(
-                          label: label,
-                          url: url,
-                        );
+                        return PaperButton(label: label, url: url);
                       } else {
                         return PaperButton(
                           label: label,
@@ -85,15 +83,13 @@ class CourseCard extends StatelessWidget {
                         // Extract year from filename (format: end_year.pdf)
                         final url = snapshot.data!;
                         final fileName = url.split('/').last.toLowerCase();
-                        final yearMatch = RegExp(r'end[_-](\d{4})').
-                            firstMatch(fileName);
+                        final yearMatch = RegExp(
+                          r'end[_-](\d{4})',
+                        ).firstMatch(fileName);
                         if (yearMatch != null) {
                           label = 'End Sem ${yearMatch.group(1)}';
                         }
-                        return PaperButton(
-                          label: label,
-                          url: url,
-                        );
+                        return PaperButton(label: label, url: url);
                       } else {
                         return PaperButton(
                           label: label,

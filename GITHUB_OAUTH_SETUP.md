@@ -132,10 +132,10 @@ GITHUB_REDIRECT_URI=https://bu-scholar.vercel.app/auth/callback
 
 ## Rate Limits Reference
 
-| Authentication | Requests per hour |
-|----------------|------------------|
-| No auth (per IP) | 60 |
-| GitHub OAuth | 5,000 |
+| Authentication   | Requests per hour |
+| ---------------- | ----------------- |
+| No auth (per IP) | 60                |
+| GitHub OAuth     | 5,000             |
 
 This is why OAuth authentication is crucial for college networks where many students might be accessing the app from the same IP address.
 
