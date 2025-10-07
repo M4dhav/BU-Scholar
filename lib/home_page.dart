@@ -41,14 +41,21 @@ class _HomePageState extends State<HomePage> {
   Future<void> _handleOAuthCallback() async {
     // Check if the current URL contains OAuth callback parameters
     final uri = Uri.base;
+    print('Current URL: ${uri.toString()}'); // Debug
+    print('Query parameters: ${uri.queryParameters}'); // Debug
+    
     if (uri.queryParameters.containsKey('code')) {
+      print('OAuth code found, processing callback...'); // Debug
       try {
         final success = await authService.handleOAuthCallback();
+        print('OAuth callback success: $success'); // Debug
+        
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Successfully logged in to GitHub!'),
               backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
             ),
           );
         } else {
@@ -56,14 +63,17 @@ class _HomePageState extends State<HomePage> {
             const SnackBar(
               content: Text('Failed to complete GitHub login'),
               backgroundColor: Colors.red,
+              duration: Duration(seconds: 5),
             ),
           );
         }
       } catch (e) {
+        print('OAuth callback error: $e'); // Debug
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('OAuth error: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -71,9 +81,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _checkAuthStatus() async {
+    print('Checking authentication status...'); // Debug
     isAuthenticated = await authService.isAuthenticated();
+    print('Is authenticated: $isAuthenticated'); // Debug
+    
     if (isAuthenticated) {
       userInfo = await authService.getUserInfo();
+      print('User info: ${userInfo?.toString()}'); // Debug
     }
     setState(() {});
   }
@@ -275,12 +289,17 @@ class _HomePageState extends State<HomePage> {
               ),
             )
           else
-            TextButton.icon(
-              onPressed: _handleGitHubLogin,
-              icon: const Icon(Icons.login, color: Colors.white),
-              label: const Text(
-                'GitHub Login',
-                style: TextStyle(color: Colors.white),
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              child: ElevatedButton.icon(
+                onPressed: _handleGitHubLogin,
+                icon: const Icon(Icons.login, size: 18),
+                label: const Text('GitHub Login'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
               ),
             ),
           const SizedBox(width: 8),
@@ -288,6 +307,32 @@ class _HomePageState extends State<HomePage> {
       ),
       body: Column(
         children: [
+          // Authentication Status Banner
+          if (isAuthenticated)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                border: Border.all(color: Colors.green[300]!),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green[700], size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Logged in as ${userInfo?['login'] ?? 'User'} • GitHub API authenticated',
+                    style: TextStyle(
+                      color: Colors.green[700],
+                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: TextField(
