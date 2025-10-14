@@ -9,7 +9,8 @@ class GitHubService {
   final String baseUrl = 'https://api.github.com';
   final GitHubAuthService _authService = GitHubAuthService();
 
-  Future<List<Map<String, dynamic>>> fetchCourses() async {
+  /// Fetch courses progressively, yielding results as they're loaded
+  Stream<Map<String, dynamic>> fetchCoursesStream() async* {
     try {
       // Get the contents of the pyqs folder using authenticated request
       final response = await _authService.authenticatedRequest(
@@ -17,8 +18,8 @@ class GitHubService {
       );
 
       if (response.statusCode == 404) {
-        // If pyqs folder doesn't exist, return empty list
-        return [];
+        // If pyqs folder doesn't exist, return empty stream
+        return;
       }
 
       if (response.statusCode != 200) {
@@ -26,7 +27,6 @@ class GitHubService {
       }
 
       final List<dynamic> contents = json.decode(response.body);
-      List<Map<String, dynamic>> courses = [];
 
       // Filter for directories (course folders)
       final courseFolders =
@@ -46,22 +46,29 @@ class GitHubService {
           // Get papers in this course folder
           final papers = await _fetchPapersInCourse(folderName);
 
-          courses.add({
+          // Yield each course as soon as it's loaded
+          yield {
             'course_name': courseName,
             'course_code': courseCode,
-            'mid_paper': papers['mid_paper'],
-            'end_paper': papers['end_paper'],
+            'folder_name': folderName,
+            'papers': papers, // Map of paper info
             'description':
                 '$courseName ($courseCode)', // For search functionality
-          });
+          };
         }
       }
-
-      return courses;
     } catch (e) {
-      // Don't fallback to mock data, let the error bubble up
       throw Exception('Error fetching courses from GitHub: $e');
     }
+  }
+
+  /// Legacy method for backwards compatibility
+  Future<List<Map<String, dynamic>>> fetchCourses() async {
+    final courses = <Map<String, dynamic>>[];
+    await for (final course in fetchCoursesStream()) {
+      courses.add(course);
+    }
+    return courses;
   }
 
   /// Check if the last request was rate limited
@@ -74,7 +81,7 @@ class GitHubService {
     return GitHubAuthService.getRateLimitInfo(response);
   }
 
-  Future<Map<String, bool>> _fetchPapersInCourse(
+  Future<List<Map<String, String>>> _fetchPapersInCourse(
     String courseFolderName,
   ) async {
     try {
@@ -83,26 +90,43 @@ class GitHubService {
       );
 
       if (response.statusCode != 200) {
-        return {'mid_paper': false, 'end_paper': false};
+        return [];
       }
 
       final List<dynamic> contents = json.decode(response.body);
-
-      bool hasMidPaper = false;
-      bool hasEndPaper = false;
+      List<Map<String, String>> papers = [];
 
       for (final item in contents) {
         final fileName = (item['name'] as String).toLowerCase();
-        if (fileName.contains('mid') && !fileName.contains('end')) {
-          hasMidPaper = true;
-        } else if (fileName.contains('end') || fileName.contains('final')) {
-          hasEndPaper = true;
+        final downloadUrl = item['download_url'] as String;
+
+        // Extract paper type and year from filename (format: mid_2024.pdf or end_2025.pdf)
+        final RegExp paperPattern = RegExp(r'^(mid|end)_(\d{4})\.pdf$');
+        final match = paperPattern.firstMatch(fileName);
+
+        if (match != null) {
+          final paperType = match.group(1)!; // 'mid' or 'end'
+          final year = match.group(2)!; // '2024', '2025', etc.
+
+          papers.add({
+            'type': paperType,
+            'year': year,
+            'url': downloadUrl,
+            'label': '${paperType == 'mid' ? 'Mid' : 'End'} Sem $year',
+          });
         }
       }
 
-      return {'mid_paper': hasMidPaper, 'end_paper': hasEndPaper};
+      // Sort papers by year (newest first) and then by type (mid before end)
+      papers.sort((a, b) {
+        final yearCompare = b['year']!.compareTo(a['year']!);
+        if (yearCompare != 0) return yearCompare;
+        return a['type']!.compareTo(b['type']!);
+      });
+
+      return papers;
     } catch (e) {
-      return {'mid_paper': false, 'end_paper': false};
+      return [];
     }
   }
 

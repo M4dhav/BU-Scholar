@@ -21,6 +21,10 @@ class _HomePageState extends State<HomePage> {
   TextEditingController searchController = TextEditingController();
   String searchQuery = '';
   bool isLoading = true;
+  bool isStreamComplete = false;
+  double loadingProgress = 0.0;
+  int totalCourses = 0;
+  int loadedCourses = 0;
   String? errorMessage;
 
   @override
@@ -34,18 +38,43 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadCourses() async {
-    try {
-      courses = await gitHubService.fetchCourses();
-      filteredCourses = courses;
+    setState(() {
+      isLoading = true;
+      isStreamComplete = false;
+      loadingProgress = 0.0;
+      loadedCourses = 0;
+      courses.clear();
+      filteredCourses.clear();
       errorMessage = null;
+    });
+
+    try {
+      await for (final course in gitHubService.fetchCoursesStream()) {
+        setState(() {
+          courses.add(course);
+          loadedCourses++;
+          // Update filtered courses if no search query
+          if (searchQuery.isEmpty) {
+            filteredCourses = List.from(courses);
+          } else {
+            filterDocuments(searchQuery);
+          }
+          // Estimate progress (we don't know total count yet, so show indeterminate)
+        });
+      }
+
+      setState(() {
+        isStreamComplete = true;
+        isLoading = false;
+        loadingProgress = 1.0;
+        totalCourses = courses.length;
+      });
     } catch (e) {
-      String error = e.toString();
-      errorMessage = 'Failed to load courses: $error';
-      courses = [];
-      filteredCourses = [];
-    } finally {
-      isLoading = false;
-      setState(() {});
+      setState(() {
+        errorMessage = 'Failed to load courses: ${e.toString()}';
+        isLoading = false;
+        isStreamComplete = true;
+      });
     }
   }
 
@@ -56,9 +85,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   void filterDocuments(String query) {
+    searchQuery = query;
+
     if (query.isEmpty) {
       setState(() {
-        filteredCourses = courses;
+        filteredCourses = List.from(courses);
       });
       return;
     }
@@ -103,6 +134,46 @@ class _HomePageState extends State<HomePage> {
             return matchesAllWords || exactPhraseMatch;
           }).toList();
     });
+  }
+
+  Widget _buildCoursesView(BuildContext context) {
+    if (filteredCourses.isEmpty && isStreamComplete) {
+      return const Center(
+        child: Text('No courses found. Try a different search term.'),
+      );
+    }
+
+    // Determine if we should use grid or list based on screen width
+    final screenWidth = MediaQuery.of(context).size.width;
+    final useGrid = screenWidth >= 900; // Desktop breakpoint
+
+    if (useGrid) {
+      return GridView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 3,
+
+          childAspectRatio: 2.0, // Increased for better fit
+          // crossAxisSpacing: 16,
+          // mainAxisSpacing: 16,
+          mainAxisExtent: null, // Let cards size themselves
+        ),
+        itemCount: filteredCourses.length,
+        itemBuilder: (context, index) {
+          final course = filteredCourses[index];
+          return CourseCard(data: course);
+        },
+      );
+    } else {
+      return ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: filteredCourses.length,
+        itemBuilder: (context, index) {
+          final course = filteredCourses[index];
+          return CourseCard(data: course);
+        },
+      );
+    }
   }
 
   @override
@@ -158,92 +229,95 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           Expanded(
-            child:
-                isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : errorMessage != null
-                    ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.error_outline,
-                            size: 64,
-                            color: Colors.red,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Error Loading Courses',
-                            style: Theme.of(context).textTheme.headlineSmall,
-                          ),
-                          const SizedBox(height: 8),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 32),
-                            child: Text(
-                              errorMessage!,
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              ElevatedButton(
-                                onPressed: () {
-                                  setState(() {
-                                    isLoading = true;
-                                    errorMessage = null;
-                                  });
-                                  initState();
-                                },
-                                child: const Text('Retry'),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    )
-                    : courses.isEmpty
-                    ? const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.school_outlined,
-                            size: 64,
-                            color: Colors.grey,
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            'No Courses Available',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'No course materials have been uploaded yet.',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    )
-                    : filteredCourses.isEmpty
-                    ? const Center(
-                      child: Text(
-                        'No courses found. Try a different search term.',
-                      ),
-                    )
-                    : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      itemCount: filteredCourses.length,
-                      itemBuilder: (context, index) {
-                        final course = filteredCourses[index];
-                        return CourseCard(data: course);
-                      },
+            child: Column(
+              children: [
+                // Progress indicator
+                if (isLoading && !isStreamComplete)
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      children: [
+                        LinearProgressIndicator(
+                          value: null, // Indeterminate
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Loading courses... ($loadedCourses loaded)',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
                     ),
+                  ),
+                Expanded(
+                  child:
+                      errorMessage != null
+                          ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.error_outline,
+                                  size: 64,
+                                  color: Colors.red,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Error Loading Courses',
+                                  style:
+                                      Theme.of(context).textTheme.headlineSmall,
+                                ),
+                                const SizedBox(height: 8),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 32,
+                                  ),
+                                  child: Text(
+                                    errorMessage!,
+                                    textAlign: TextAlign.center,
+                                    style:
+                                        Theme.of(context).textTheme.bodyMedium,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    _loadCourses();
+                                  },
+                                  child: const Text('Retry'),
+                                ),
+                              ],
+                            ),
+                          )
+                          : courses.isEmpty && isStreamComplete
+                          ? const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.school_outlined,
+                                  size: 64,
+                                  color: Colors.grey,
+                                ),
+                                SizedBox(height: 16),
+                                Text(
+                                  'No Courses Available',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'No course materials have been uploaded yet.',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          )
+                          : _buildCoursesView(context),
+                ),
+              ],
+            ),
           ),
         ],
       ),

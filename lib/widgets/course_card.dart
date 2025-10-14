@@ -1,4 +1,3 @@
-import '../github_service.dart';
 import 'package:flutter/material.dart';
 import '../utils/string_extensions.dart';
 import 'paper_button.dart';
@@ -18,90 +17,112 @@ class CourseCard extends StatelessWidget {
         .join(' ');
 
     final courseCode = data['course_code'].toString().toUpperCase();
-    final gitHubService = GitHubService();
+    final List<Map<String, String>> papers =
+        (data['papers'] as List<dynamic>?)
+            ?.cast<Map<String, String>>() ??
+        [];
 
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       clipBehavior: Clip.antiAlias,
       margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              courseName,
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              courseCode,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                fontStyle: FontStyle.italic,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 12,
-              alignment: WrapAlignment.center,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Calculate responsive sizes based on card width
+          final cardWidth = constraints.maxWidth;
+          
+          // Responsive padding (3-5% of card width)
+          final padding = (cardWidth * 0.04).clamp(12.0, 20.0);
+          
+          // Available width after padding
+          final availableWidth = cardWidth - (padding * 2);
+          
+          // Responsive font sizes
+          final titleFontSize = (cardWidth * 0.045).clamp(14.0, 20.0);
+          final codeFontSize = (cardWidth * 0.03).clamp(11.0, 14.0);
+          final buttonFontSize = (cardWidth * 0.032).clamp(11.0, 13.0);
+          
+          // Responsive spacing
+          final titleCodeSpacing = (cardWidth * 0.01).clamp(2.0, 5.0);
+          final codeButtonSpacing = (cardWidth * 0.02).clamp(6.0, 12.0);
+          
+          // Responsive button height
+          final buttonHeight = (cardWidth * 0.08).clamp(30.0, 40.0);
+          
+          // Button width calculation
+          final buttonWidth = papers.isNotEmpty
+              ? (availableWidth / papers.length.clamp(1, 3)) - 8
+              : availableWidth;
+          
+          return Padding(
+            padding: EdgeInsets.all(padding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                if (data['mid_paper'] == true)
-                  FutureBuilder<String>(
-                    future: gitHubService.findExactPaperUrl(courseCode, 'mid'),
-                    builder: (context, snapshot) {
-                      String label = 'Mid Sem Paper';
-                      if (snapshot.hasData) {
-                        // Extract year from filename (format: mid_year.pdf)
-                        final url = snapshot.data!;
-                        final fileName = url.split('/').last.toLowerCase();
-                        final yearMatch = RegExp(
-                          r'mid[_-](\d{4})',
-                        ).firstMatch(fileName);
-                        if (yearMatch != null) {
-                          label = 'Mid Sem ${yearMatch.group(1)}';
-                        }
-                        return PaperButton(label: label, url: url);
-                      } else {
-                        return PaperButton(
-                          label: label,
-                          url: gitHubService.getPaperUrl(courseCode, 'mid'),
-                        );
-                      }
-                    },
+                Flexible(
+                  child: Text(
+                    courseName,
+                    style: TextStyle(
+                      fontSize: titleFontSize,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                if (data['end_paper'] == true)
-                  FutureBuilder<String>(
-                    future: gitHubService.findExactPaperUrl(courseCode, 'end'),
-                    builder: (context, snapshot) {
-                      String label = 'End Sem Paper';
-                      if (snapshot.hasData) {
-                        // Extract year from filename (format: end_year.pdf)
-                        final url = snapshot.data!;
-                        final fileName = url.split('/').last.toLowerCase();
-                        final yearMatch = RegExp(
-                          r'end[_-](\d{4})',
-                        ).firstMatch(fileName);
-                        if (yearMatch != null) {
-                          label = 'End Sem ${yearMatch.group(1)}';
-                        }
-                        return PaperButton(label: label, url: url);
-                      } else {
-                        return PaperButton(
-                          label: label,
-                          url: gitHubService.getPaperUrl(courseCode, 'end'),
-                        );
-                      }
-                    },
+                ),
+                SizedBox(height: titleCodeSpacing),
+                Text(
+                  courseCode,
+                  style: TextStyle(
+                    fontSize: codeFontSize,
+                    fontStyle: FontStyle.italic,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                SizedBox(height: codeButtonSpacing),
+                // Use SingleChildScrollView with horizontal scroll to prevent overflow
+                if (papers.isNotEmpty)
+                  Flexible(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: papers.map((paper) {
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: SizedBox(
+                              width: buttonWidth,
+                              height: buttonHeight,
+                              child: PaperButton(
+                                label: paper['label'] ?? 'Paper',
+                                url: paper['url'] ?? '',
+                                fontSize: buttonFontSize,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: padding * 0.25),
+                    child: Text(
+                      'No papers available',
+                      style: TextStyle(
+                        fontSize: codeFontSize * 0.9,
+                        color: Colors.grey,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
                   ),
               ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
