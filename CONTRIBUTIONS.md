@@ -76,8 +76,6 @@ Files inside each course directory **must** be named with exam type and year:
 
 ### Step 1: Fork and Clone the Repository
 
-### Step 1: Fork and Clone the Repository
-
 ```bash
 git clone https://github.com/YOUR_USERNAME/BU-Scholar.git
 cd BU-Scholar
