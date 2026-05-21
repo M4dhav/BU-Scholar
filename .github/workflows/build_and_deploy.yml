@@ -134,6 +134,14 @@ jobs:
           name: apk-release
           path : apk-release
 
+      - name: Extract version from pubspec.yaml
+        id: extract_version
+        run: |
+          # Finds the line starting with "version: ", grabs the second column, 
+          # removes any trailing characters (like +buildNumber), and prefixes with "v"
+          VERSION=$(grep '^version: ' pubspec.yaml | awk '{print $2}' | cut -d '+' -f 1)
+          echo "build_tag=v${VERSION}" >> $GITHUB_OUTPUT
+
       - name: Deploy to GitHub Release
         uses: ncipollo/release-action@v1.14.0
         with:
