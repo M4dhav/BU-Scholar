@@ -14,6 +14,7 @@ jobs:
       JAVA_VERSION: 21.0.6
       FLUTTER_VERSION: 3.41.9
       APK_PATH: build/app/outputs/flutter-apk/app-release.apk
+      AAB_PATH: build/app/outputs/bundle/release/app-release.aab
       KEYSTORE_PATH: android/upload-keystore.jks
       KEY_PROPS_PATH: android/key.properties
     steps:
@@ -76,12 +77,25 @@ jobs:
       # - name: Run tests
       #   run: flutter test
 
-      - name: Build Android APK
+      - name: Build Android App Bundle
         run: |
-          flutter build apk --release 
+          flutter build appbundle \
+          --release 
 
+      - name: Verify AAB file existence
+        run: ls -lh ${{ env.AAB_PATH }}
+
+      - name: Build Android APK
+        run: cd android && ./gradlew assembleRelease
+      
       - name: Verify APK file existence
         run: ls -lh ${{ env.APK_PATH }}
+
+      - name: Upload generated aab to the artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: aab-stores
+          path: ${{ env.AAB_PATH }}
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -148,5 +162,36 @@ jobs:
           allowUpdates: true
           artifacts: ${{ env.APK_RELEASE_PATH }}
           artifactContentType: apk
-          # tag: ${{ steps.parse_changelog.outputs.build_tag }}
+          tag: ${{ steps.extract_version.outputs.build_tag }}
           # body: ${{ steps.parse_changelog.outputs.release_notes }}
+  
+  deploy_play_store_release:
+    name: Deploy to Google Play Store Internal Testing
+    runs-on: ubuntu-latest
+    needs: build_android
+    permissions:
+      contents: write
+    env:
+      AAB_RELEASE_PATH: aab-release/*.aab
+      SERVICE_ACCOUNT_PATH: store_credentials.json
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Decode Android release Service Account
+      - name: Decode Android Service Account
+        run: echo "${{ secrets.ANDROID_RELEASE_SERVICE_ACCOUNT }}" | base64 --decode > ${{ env.SERVICE_ACCOUNT_PATH }}
+
+      - name: Download AAB artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aab-stores
+          path : aab-release
+
+      - name: Deploy to Play Store (Internal testing)
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJson: ${{ env.SERVICE_ACCOUNT_PATH }}
+          packageName: com.m4dhav.bu_scholar
+          releaseFiles: ${{ env.AAB_RELEASE_PATH }}
+          track: internal
